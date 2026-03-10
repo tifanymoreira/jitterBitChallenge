@@ -2,30 +2,38 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 
+const mapOrderData = (payload) => {
+    const dataCriacao = payload.dataCriacao || payload["data Criacao"];
+    const valorTotal = payload.valorTotal || payload["valor Total"];
+
+    return {
+        orderId: payload.numeroPedido,
+        value: Number(valorTotal),
+        creationDate: new Date(dataCriacao),
+        items: payload.items.map(item => ({
+            productId: Number(item.idItem || item.idltem),
+            quantity: Number(item.quantidadeItem || item.quantidadeltem),
+            price: Number(item.valorItem || item.valorltem)
+        }))
+    };
+};
+
+// [POST] Criar Pedido
 router.post('/order', async (req, res) => {
     try {
-        const { numeroPedido, "valor Total": valorTotal, "data Criacao": dataCriacao, items } = req.body;
+        const { numeroPedido, items } = req.body;
 
-        if (!numeroPedido || !valorTotal || !dataCriacao || !items) {
+        if (!numeroPedido || !items) {
             return res.status(400).json({ error: "Dados incompletos no corpo da requisição." });
         }
 
-        // Transformação dos dados (Mapping) 
-        const mappedItems = items.map(item => ({
-            productId: Number(item.idltem),
-            quantity: item.quantidadeltem,
-            price: item.valorltem
-        }));
-
-        const newOrder = new Order({
-            orderId: numeroPedido,
-            value: valorTotal,
-            creationDate: new Date(dataCriacao),
-            items: mappedItems
-        });
+    
+        const mappedData = mapOrderData(req.body);
+        const newOrder = new Order(mappedData);
 
         const savedOrder = await newOrder.save();
-        res.status(201).json(savedOrder); // 201 Created
+        res.status(201).json(savedOrder);
+
     } catch (error) {
         if (error.code === 11000) {
             return res.status(409).json({ error: "Pedido com este número já existe." });
@@ -34,6 +42,7 @@ router.post('/order', async (req, res) => {
     }
 });
 
+// [GET] Listar Todos
 router.get('/order/list', async (req, res) => {
     try {
         const orders = await Order.find();
@@ -43,13 +52,14 @@ router.get('/order/list', async (req, res) => {
     }
 });
 
+// [GET] Buscar por ID
 router.get('/order/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
         const order = await Order.findOne({ orderId: orderId });
 
         if (!order) {
-            return res.status(404).json({ error: "Pedido não encontrado." }); // 404 Not Found
+            return res.status(404).json({ error: "Pedido não encontrado." }); 
         }
 
         res.status(200).json(order);
@@ -58,13 +68,16 @@ router.get('/order/:id', async (req, res) => {
     }
 });
 
+// [PUT] Atualizar Pedido
 router.put('/order/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
         
+        const mappedData = mapOrderData(req.body);
+        
         const updatedOrder = await Order.findOneAndUpdate(
             { orderId: orderId },
-            req.body,
+            mappedData,
             { new: true, runValidators: true }
         );
 
@@ -78,6 +91,7 @@ router.put('/order/:id', async (req, res) => {
     }
 });
 
+// [DELETE] Excluir Pedido
 router.delete('/order/:id', async (req, res) => {
     try {
         const orderId = req.params.id;

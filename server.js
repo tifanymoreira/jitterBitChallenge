@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const orderRoutes = require('./routes/orderRoutes');
@@ -9,10 +8,10 @@ app.use(express.json());
 
 app.use('/', orderRoutes);
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect('mongodb://127.0.0.1:27017/jitterbit_test')
     .then(() => {
         console.log('Conectado ao MongoDB com sucesso!');
-        const PORT = process.env.PORT || 3000;
+        const PORT = 3000;
         app.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
         });
